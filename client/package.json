@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-menubar": "^1.1.16",
+    "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.1.17",
     "class-variance-authority": "^0.7.1",
@@ -20,8 +22,10 @@
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
     "react-pdf": "^10.2.0",
+    "react-router": "^7.10.1",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4.1.17",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
