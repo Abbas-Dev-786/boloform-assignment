@@ -6,6 +6,9 @@ import {
 } from "./components/ui/shadcn-io/dropzone";
 import { Document, Page, pdfjs } from "react-pdf";
 
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url
@@ -14,7 +17,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const App = () => {
   const [file, setFile] = useState<File | undefined>();
   const [fileUrl, setFileUrl] = useState<string | undefined>();
-  const [numPages, setNumPages] = useState<number>(0);
+  const [numPages, setNumPages] = useState<number>(1);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
+    setNumPages(numPages);
+  }
 
   const handleDrop = (files: File[]) => {
     const file = files[0];
@@ -27,10 +35,6 @@ const App = () => {
 
     setFile(file);
     setFileUrl(url);
-  };
-
-  const handleLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
   };
 
   return (
@@ -54,16 +58,42 @@ const App = () => {
           </Dropzone>
         </div>
       ) : (
-        <div className="size-120 flex flex-col items-center justify-center overflow-auto bg-white p-4 rounded shadow">
-          <Document file={fileUrl} onLoadSuccess={handleLoadSuccess}>
-            {Array.from({ length: numPages }, (_, index) => (
-              <Page
-                key={`page_${index + 1}`}
-                pageNumber={index + 1}
-                width={500} // adjust / make responsive as you like
-              />
-            ))}
-          </Document>
+        <div className="flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-white p-4 flex flex-col gap-4 rounded-lg shadow mb-10">
+            <h1>Hello</h1>
+          </div>
+          <div className="bg-white p-4 flex flex-col gap-4 rounded-lg shadow">
+            <Document
+              file={fileUrl}
+              className={"border border-gray-300 shadow-md"}
+              loading={<h1>Loading...</h1>}
+              onLoadSuccess={onDocumentLoadSuccess}
+            >
+              <Page pageNumber={pageNumber} height={600} />
+            </Document>
+
+            <div className="flex items-center justify-around gap-10">
+              <button
+                onClick={() =>
+                  setPageNumber(pageNumber > 1 ? pageNumber - 1 : 1)
+                }
+              >
+                Previous
+              </button>
+              <p>
+                Page {pageNumber} of {numPages}
+              </p>
+              <button
+                onClick={() =>
+                  setPageNumber(
+                    pageNumber < (numPages || 1) ? pageNumber + 1 : numPages
+                  )
+                }
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
