@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Document, Page } from "react-pdf";
-import { FileText, Loader2, CheckCircle, Download, AlertCircle } from "lucide-react";
+import { FileText, Loader2, CheckCircle, Download, AlertCircle, X, Upload } from "lucide-react";
 import { Button } from "../components/ui/button";
 import SignaturePad from "../components/custom/signature-pad";
 import type { FieldData } from "../types/field-types";
@@ -17,9 +17,18 @@ const FIELD_COLORS: Record<string, string> = {
     radio: "#ec4899",
 };
 
+const FIELD_LABELS: Record<string, string> = {
+    text: "Click to enter text",
+    signature: "Click to sign",
+    image: "Click to upload image",
+    date: "Date",
+    radio: "Click to select",
+};
+
 const SignerView = () => {
     const { documentId } = useParams<{ documentId: string }>();
     const navigate = useNavigate();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,6 +47,10 @@ const SignerView = () => {
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+
+    // Text input modal state
+    const [showTextModal, setShowTextModal] = useState(false);
+    const [textInputValue, setTextInputValue] = useState("");
 
     const [numPages, setNumPages] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
@@ -85,20 +98,47 @@ const SignerView = () => {
     }, [documentId]);
 
     const handleFieldClick = (field: FieldData) => {
+        console.log("Field clicked:", field);
+        setActiveFieldId(field.id);
+
         if (field.type === "signature") {
-            setActiveFieldId(field.id);
             setShowSignaturePad(true);
         } else if (field.type === "text") {
-            const value = prompt("Enter text value:", filledValues[field.id] || "");
-            if (value !== null) {
-                setFilledValues((prev) => ({ ...prev, [field.id]: value }));
-            }
+            setTextInputValue(filledValues[field.id] || "");
+            setShowTextModal(true);
+        } else if (field.type === "image") {
+            fileInputRef.current?.click();
         } else if (field.type === "radio") {
             setFilledValues((prev) => ({
                 ...prev,
                 [field.id]: prev[field.id] === "true" ? "false" : "true",
             }));
         }
+    };
+
+    const handleTextSubmit = () => {
+        if (activeFieldId && textInputValue.trim()) {
+            setFilledValues((prev) => ({ ...prev, [activeFieldId]: textInputValue.trim() }));
+        }
+        setShowTextModal(false);
+        setTextInputValue("");
+        setActiveFieldId(null);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !activeFieldId) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result as string;
+            setFilledValues((prev) => ({ ...prev, [activeFieldId]: base64 }));
+            setActiveFieldId(null);
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input
+        e.target.value = "";
     };
 
     const handleSignatureSave = (signature: string) => {
@@ -212,6 +252,15 @@ const SignerView = () => {
 
     return (
         <div className="min-h-screen bg-gray-100">
+            {/* Hidden file input for image upload */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+            />
+
             {/* Header */}
             <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -255,34 +304,41 @@ const SignerView = () => {
 
                         {/* Field Overlays */}
                         {pageDimensions.width > 0 && currentPageFields.map((field) => {
-                            const isFilled = !!filledValues[field.id];
+                            const value = filledValues[field.id];
+                            const isFilled = !!value;
                             const isSignature = field.type === "signature";
+                            const isImage = field.type === "image";
 
                             return (
                                 <div
                                     key={field.id}
                                     onClick={() => handleFieldClick(field)}
-                                    className="absolute cursor-pointer transition-all hover:opacity-80"
+                                    className="absolute cursor-pointer transition-all hover:opacity-80 overflow-hidden"
                                     style={{
                                         left: field.x * pageDimensions.width,
                                         top: field.y * pageDimensions.height,
                                         width: field.width * pageDimensions.width,
                                         height: field.height * pageDimensions.height,
-                                        backgroundColor: `${FIELD_COLORS[field.type]}20`,
+                                        backgroundColor: isFilled ? `${FIELD_COLORS[field.type]}10` : `${FIELD_COLORS[field.type]}20`,
                                         border: `2px solid ${FIELD_COLORS[field.type]}`,
                                         borderRadius: 4,
                                     }}
                                 >
                                     <div
                                         className="absolute inset-0 flex items-center justify-center text-xs font-medium overflow-hidden px-1"
-                                        style={{ color: FIELD_COLORS[field.type] }}
+                                        style={{ color: isFilled ? "#333" : FIELD_COLORS[field.type] }}
                                     >
                                         {isSignature && signatureImage ? (
                                             <img src={signatureImage} alt="Signature" className="max-h-full max-w-full object-contain" />
-                                        ) : isFilled ? (
-                                            filledValues[field.id]
+                                        ) : isImage && value?.startsWith("data:image") ? (
+                                            <img src={value} alt="Uploaded" className="max-h-full max-w-full object-contain" />
+                                        ) : isFilled && !isSignature && !isImage ? (
+                                            <span className="truncate">{value}</span>
                                         ) : (
-                                            `Click to ${isSignature ? "sign" : "fill"}`
+                                            <span className="flex items-center gap-1">
+                                                {isImage && <Upload className="h-3 w-3" />}
+                                                {FIELD_LABELS[field.type]}
+                                            </span>
                                         )}
                                     </div>
                                 </div>
@@ -316,6 +372,37 @@ const SignerView = () => {
                     )}
                 </div>
             </div>
+
+            {/* Text Input Modal */}
+            {showTextModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-gray-900">Enter Text</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setShowTextModal(false)}>
+                                <X size={20} />
+                            </Button>
+                        </div>
+                        <input
+                            type="text"
+                            value={textInputValue}
+                            onChange={(e) => setTextInputValue(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
+                            className="w-full border rounded-lg px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Type your text here..."
+                            autoFocus
+                        />
+                        <div className="flex gap-3 justify-end mt-4">
+                            <Button variant="outline" onClick={() => setShowTextModal(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleTextSubmit}>
+                                Save
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Signature Pad Modal */}
             <SignaturePad
