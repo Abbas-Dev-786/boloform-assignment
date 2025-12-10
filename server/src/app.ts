@@ -1,32 +1,34 @@
-import express, {
-  type Application,
-  type Request,
-  type Response,
-} from "express";
+import express, { type Application } from "express";
 import morgan from "morgan";
 import cors from "cors";
+import path from "path";
 import { globalErrorHandler } from "./controllers/error.controller.js";
 import AppError from "./utils/AppError.js";
+import documentRoutes from "./routes/document.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 const app: Application = express();
 
 // Middleware
 app.use(cors({ origin: "*", credentials: true }));
 app.use(morgan("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" })); // Increased for base64 signatures
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Routes
-app.get("/", (req: Request, res: Response) => {
-  res.send("Hello, TypeScript + Express!");
-});
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// handle unknown routes
+// API Routes
+const BASE_API = "/api/v1";
+app.use(`${BASE_API}/documents`, documentRoutes);
+app.use(`${BASE_API}/audit`, auditRoutes);
+
+// Handle unknown routes
 app.use("/{*splat}", (req, res, next) => {
   next(new AppError(404, `Can't find ${req.originalUrl} on this server`));
 });
 
-// global error handler
+// Global error handler
 app.use(globalErrorHandler);
 
 export default app;

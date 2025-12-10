@@ -17,7 +17,9 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.10.2",
+    "@types/uuid": "^11.0.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
@@ -29,6 +31,8 @@
     "mongoose": "^9.0.1",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "sharp": "^0.34.5"
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.34.5",
+    "uuid": "^13.0.0"
   }
 }

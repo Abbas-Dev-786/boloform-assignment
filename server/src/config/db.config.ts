@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export default async function connectToDB() {
   try {
-    await mongoose.connect(process.env.DATABASE_URI as string, {
+    await mongoose.connect(process.env.MONGODB_URL as string, {
       autoIndex: true,
     });
 

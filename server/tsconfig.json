@@ -9,8 +9,8 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
-    "types": [],
-    // For nodejs:
+    "types": ["node"],
+    "lib": ["esnext"],
     // "lib": ["esnext"],
     // "types": ["node"],
     // and npm install -D @types/node
@@ -22,7 +22,7 @@
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    // "exactOptionalPropertyTypes": true, // Disabled for mongoose compatibility
 
     // Style Options
     // "noImplicitReturns": true,
