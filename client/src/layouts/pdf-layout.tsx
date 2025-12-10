@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { Link2, Copy, Check } from "lucide-react";
 import CustomPagination from "../components/custom/custom-pagination";
 import ActionToolbar from "../components/custom/action-toolbar";
 import PdfRenderer from "../components/custom/pdf-renderer";
 import SignaturePad from "../components/custom/signature-pad";
+import { Button } from "../components/ui/button";
 import useGlobalStore from "../store/global.store";
-import { documentApi, type FieldData } from "../lib/api";
+import { documentApi, shareApi, type FieldData } from "../lib/api";
 
 interface PdfLayoutProps {
   documentId: string | null;
@@ -25,6 +27,9 @@ const PdfLayout = ({ documentId }: PdfLayoutProps) => {
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [signing, setSigning] = useState(false);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   // Sync pagination state with global store
   const handleSetNumPages = (numPages: number) => {
@@ -35,6 +40,64 @@ const PdfLayout = ({ documentId }: PdfLayoutProps) => {
     const fields = getAllFields();
     console.log("Saved fields:", JSON.stringify(fields, null, 2));
     alert(`${fields.length} field(s) saved locally. Click "Sign Document" to finalize.`);
+  };
+
+  const handleShare = async () => {
+    if (!documentId) {
+      alert("No document ID found. Please re-upload the PDF.");
+      return;
+    }
+
+    const fields = getAllFields();
+    if (fields.length === 0) {
+      alert("Please add at least one field before sharing.");
+      return;
+    }
+
+    setSharing(true);
+
+    try {
+      // Transform fields to API format
+      const apiFields: FieldData[] = fields.map(f => ({
+        id: f.id,
+        type: f.type,
+        pageNumber: f.pageNumber,
+        x: f.x,
+        y: f.y,
+        width: f.width,
+        height: f.height,
+        value: f.value,
+        required: f.required,
+      }));
+
+      await shareApi.prepare(documentId, apiFields);
+      const url = shareApi.getShareUrl(documentId);
+      setShareUrl(url);
+    } catch (err) {
+      alert(`Failed to generate share link: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!shareUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleSign = () => {
@@ -123,6 +186,40 @@ const PdfLayout = ({ documentId }: PdfLayoutProps) => {
         onSign={handleSign}
         signing={signing}
       />
+
+      {/* Share Link Section */}
+      <div className="w-full max-w-2xl mb-4">
+        {!shareUrl ? (
+          <Button
+            variant="outline"
+            onClick={handleShare}
+            disabled={sharing || fieldCount === 0}
+            className="w-full gap-2"
+          >
+            <Link2 className="h-4 w-4" />
+            {sharing ? "Generating..." : "Get Sharing Link"}
+          </Button>
+        ) : (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">
+            <Link2 className="h-5 w-5 text-green-600 shrink-0" />
+            <input
+              type="text"
+              value={shareUrl}
+              readOnly
+              className="flex-1 bg-transparent text-sm text-green-800 outline-none"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleCopyLink}
+              className="gap-2 text-green-700"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white p-4 flex flex-col gap-4 rounded-lg shadow">
         <PdfRenderer

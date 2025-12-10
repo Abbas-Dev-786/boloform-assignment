@@ -4,6 +4,7 @@ import { pdfjs } from "react-pdf";
 import Home from "./pages/Home.tsx";
 import Documents from "./pages/Documents.tsx";
 import AuditTrail from "./pages/AuditTrail.tsx";
+import SignerView from "./pages/SignerView.tsx";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -19,6 +20,7 @@ const App = () => {
       <Route path="/" index element={<Home />} />
       <Route path="/documents" element={<Documents />} />
       <Route path="/audit/:documentId" element={<AuditTrail />} />
+      <Route path="/sign/:documentId" element={<SignerView />} />
     </Routes>
   );
 };

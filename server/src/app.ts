@@ -6,6 +6,7 @@ import { globalErrorHandler } from "./controllers/error.controller.js";
 import AppError from "./utils/AppError.js";
 import documentRoutes from "./routes/document.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
+import shareRoutes from "./routes/share.routes.js";
 
 const app: Application = express();
 
@@ -22,6 +23,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 const BASE_API = "/api/v1";
 app.use(`${BASE_API}/documents`, documentRoutes);
 app.use(`${BASE_API}/audit`, auditRoutes);
+app.use(`${BASE_API}/share`, shareRoutes);
 
 // Handle unknown routes
 app.use("/{*splat}", (req, res, next) => {

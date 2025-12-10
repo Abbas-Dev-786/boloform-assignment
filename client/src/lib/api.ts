@@ -187,3 +187,32 @@ export const auditApi = {
     });
   },
 };
+
+// Share APIs
+export interface PrepareShareResponse {
+  status: string;
+  data: {
+    documentId: string;
+    shareUrl: string;
+    fieldsCount: number;
+  };
+}
+
+export const shareApi = {
+  /**
+   * Prepare document for sharing (save fields)
+   */
+  async prepare(documentId: string, fields: FieldData[]): Promise<PrepareShareResponse> {
+    return apiRequest(`/share/prepare/${documentId}`, {
+      method: "POST",
+      body: JSON.stringify({ fields }),
+    });
+  },
+
+  /**
+   * Get full share URL
+   */
+  getShareUrl(documentId: string): string {
+    return `${window.location.origin}/sign/${documentId}`;
+  },
+};
