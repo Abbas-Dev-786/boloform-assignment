@@ -31,20 +31,20 @@ const CustomPagination = ({
           onClick={handlePreviousBtnClick}
           className="cursor-pointer"
         >
-          <PaginationPrevious size={2} />
+          <PaginationPrevious />
         </PaginationItem>
         <PaginationItem>
           <PaginationLink
-            size={2}
+            size="default"
+            className="min-w-[100px] justify-center"
           >{`${pageNumber} / ${numPages}`}</PaginationLink>
         </PaginationItem>
         <PaginationItem onClick={handleNextBtnClick} className="cursor-pointer">
-          <PaginationNext size={2} />
+          <PaginationNext />
         </PaginationItem>
       </PaginationContent>
     </Pagination>
   );
 };
-// Page {pageNumber} of {numPages}
 
 export default CustomPagination;
