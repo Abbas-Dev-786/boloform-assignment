@@ -287,7 +287,7 @@ const FieldCanvas = ({ width, height, pageNumber }: FieldCanvasProps) => {
         >
             <canvas
                 ref={canvasRef}
-                style={{ pointerEvents: "none" }}
+            // style={{ pointerEvents: "none" }}
             />
         </div>
     );
