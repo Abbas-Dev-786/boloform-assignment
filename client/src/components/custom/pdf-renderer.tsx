@@ -17,10 +17,34 @@ interface PdfRendererProps {
 }
 
 const PdfRenderer = ({ pageNumber, setNumPages }: PdfRendererProps) => {
-    const { fileUrl } = useGlobalStore();
+    const { fileUrl, setFabricCanvas } = useGlobalStore();
+    const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const [loading, setLoading] = useState(false);
+    const [containerWidth, setContainerWidth] = useState<number>(0);
+
+    // Measure container width
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.contentBoxSize) {
+                    // We use contentBoxSize to get the width without padding/border if box-sizing is content-box,
+                    // but technically clientWidth or contentRect.width is often safer for "available space".
+                    // entry.contentRect.width is strictly the content area.
+                    setContainerWidth(entry.contentRect.width);
+                }
+            }
+        });
+
+        resizeObserver.observe(containerRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
 
     // Initialize Fabric Canvas
     useEffect(() => {
@@ -28,20 +52,22 @@ const PdfRenderer = ({ pageNumber, setNumPages }: PdfRendererProps) => {
             fabricCanvasRef.current = new fabric.Canvas(canvasRef.current, {
                 selection: false,
             });
+            setFabricCanvas(fabricCanvasRef.current);
         }
 
         return () => {
             if (fabricCanvasRef.current) {
+                setFabricCanvas(null);
                 fabricCanvasRef.current.dispose();
                 fabricCanvasRef.current = null;
             }
         };
-    }, []);
+    }, [setFabricCanvas]);
 
     // Load and Render PDF Page
     useEffect(() => {
         const renderPdfPage = async () => {
-            if (!fileUrl || !fabricCanvasRef.current) return;
+            if (!fileUrl || !fabricCanvasRef.current || containerWidth === 0) return;
 
             setLoading(true);
             try {
@@ -51,8 +77,9 @@ const PdfRenderer = ({ pageNumber, setNumPages }: PdfRendererProps) => {
 
                 const page = await pdf.getPage(pageNumber);
 
-                // Scale: 1 for now, can be dynamic
-                const scale = 1.0;
+                // Calculate scale to fit container width
+                const unscaledViewport = page.getViewport({ scale: 1.0 });
+                const scale = containerWidth / unscaledViewport.width;
                 const viewport = page.getViewport({ scale });
 
                 // Create an offscreen canvas to render the PDF page
@@ -89,11 +116,18 @@ const PdfRenderer = ({ pageNumber, setNumPages }: PdfRendererProps) => {
             }
         };
 
-        renderPdfPage();
-    }, [fileUrl, pageNumber, setNumPages]);
+        // Debounce slightly if needed, or rely on React batching.
+        // Real-time resizing might be heavy, but let's try direct first.
+        const timeoutId = setTimeout(() => {
+            renderPdfPage();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+
+    }, [fileUrl, pageNumber, setNumPages, containerWidth]);
 
     return (
-        <div className="relative border border-gray-300 shadow-md inline-block">
+        <div ref={containerRef} className="relative w-full border border-gray-300 shadow-md inline-block">
             {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                     Loading...
