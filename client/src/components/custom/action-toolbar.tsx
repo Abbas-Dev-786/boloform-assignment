@@ -24,16 +24,16 @@ const TOOLS: { type: FieldType; icon: React.ReactNode; label: string }[] = [
 interface ActionToolbarProps {
   onSave?: () => void;
   onSign?: () => void;
+  signing?: boolean;
 }
 
-const ActionToolbar = ({ onSave, onSign }: ActionToolbarProps) => {
+const ActionToolbar = ({ onSave, onSign, signing = false }: ActionToolbarProps) => {
   const {
     currentTool,
     setCurrentTool,
     clearAllFields,
     getAllFields,
     isSigningMode,
-    setSigningMode,
   } = useGlobalStore();
 
   const fields = getAllFields();
@@ -54,7 +54,6 @@ const ActionToolbar = ({ onSave, onSign }: ActionToolbarProps) => {
   };
 
   const handleSign = () => {
-    setSigningMode(!isSigningMode);
     onSign?.();
   };
 
@@ -110,12 +109,12 @@ const ActionToolbar = ({ onSave, onSign }: ActionToolbarProps) => {
           <Button
             variant={isSigningMode ? "default" : "outline"}
             onClick={handleSign}
-            disabled={!hasFields}
+            disabled={!hasFields || signing}
             className="gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
             <FileSignature size={18} />
             <span className="hidden sm:inline">
-              {isSigningMode ? "Exit Signing" : "Sign Document"}
+              {signing ? "Signing..." : "Sign Document"}
             </span>
           </Button>
         </div>
