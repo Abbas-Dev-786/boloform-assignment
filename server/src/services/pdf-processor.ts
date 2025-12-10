@@ -1,10 +1,27 @@
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import type { IFieldData } from "../models/document.model.js";
 
 interface SignatureOverlay {
   signatureBase64: string;
   fields: IFieldData[];
 }
+
+// Field colors by type (matching frontend)
+const FIELD_COLORS: Record<string, { r: number; g: number; b: number }> = {
+  text: { r: 0.231, g: 0.51, b: 0.965 }, // #3b82f6
+  signature: { r: 0.133, g: 0.773, b: 0.369 }, // #22c55e
+  image: { r: 0.659, g: 0.333, b: 0.969 }, // #a855f7
+  date: { r: 0.976, g: 0.451, b: 0.086 }, // #f97316
+  radio: { r: 0.925, g: 0.282, b: 0.6 }, // #ec4899
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  text: "Text",
+  signature: "Signature",
+  image: "Image",
+  date: "Date",
+  radio: "Radio",
+};
 
 /**
  * Burns signature and field values into a PDF document.
@@ -17,6 +34,9 @@ export async function burnSignatureIntoPdf(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const pages = pdfDoc.getPages();
+  
+  // Embed a standard font for labels
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   // Embed signature image if provided
   let signatureImage;
@@ -35,6 +55,8 @@ export async function burnSignatureIntoPdf(
       signatureImage = await pdfDoc.embedJpg(imageBytes);
     }
   }
+
+  console.log(`Processing ${overlay.fields.length} fields...`);
 
   // Process each field
   for (const field of overlay.fields) {
@@ -56,6 +78,23 @@ export async function burnSignatureIntoPdf(
     const pdfHeight = field.height * pageHeight;
     // Flip Y: PDF Y = pageHeight - (normalized Y * pageHeight) - field height
     const pdfY = pageHeight - (field.y * pageHeight) - pdfHeight;
+
+    console.log(`Field ${field.type} at (${pdfX.toFixed(2)}, ${pdfY.toFixed(2)}) size ${pdfWidth.toFixed(2)}x${pdfHeight.toFixed(2)}`);
+
+    // Get field color
+    const color = FIELD_COLORS[field.type] || { r: 0.5, g: 0.5, b: 0.5 };
+
+    // Always draw field border for visibility
+    page.drawRectangle({
+      x: pdfX,
+      y: pdfY,
+      width: pdfWidth,
+      height: pdfHeight,
+      borderColor: rgb(color.r, color.g, color.b),
+      borderWidth: 1,
+      opacity: 0.1,
+      color: rgb(color.r, color.g, color.b),
+    });
 
     switch (field.type) {
       case "signature":
@@ -87,19 +126,30 @@ export async function burnSignatureIntoPdf(
             width: drawWidth,
             height: drawHeight,
           });
+        } else {
+          // Draw placeholder label if no signature
+          const label = FIELD_LABELS[field.type] || field.type;
+          const fontSize = Math.min(pdfHeight * 0.5, 10);
+          page.drawText(label, {
+            x: pdfX + 4,
+            y: pdfY + pdfHeight / 2 - fontSize / 2,
+            size: fontSize,
+            font,
+            color: rgb(color.r, color.g, color.b),
+          });
         }
         break;
 
       case "text":
-        if (field.value) {
-          const fontSize = Math.min(pdfHeight * 0.7, 14);
-          page.drawText(field.value, {
-            x: pdfX + 4,
-            y: pdfY + pdfHeight / 2 - fontSize / 2,
-            size: fontSize,
-            color: rgb(0, 0, 0),
-          });
-        }
+        const textValue = field.value || FIELD_LABELS[field.type];
+        const textFontSize = Math.min(pdfHeight * 0.7, 14);
+        page.drawText(textValue!!, {
+          x: pdfX + 4,
+          y: pdfY + pdfHeight / 2 - textFontSize / 2,
+          size: textFontSize,
+          font,
+          color: field.value ? rgb(0, 0, 0) : rgb(color.r, color.g, color.b),
+        });
         break;
 
       case "date":
@@ -109,6 +159,7 @@ export async function burnSignatureIntoPdf(
           x: pdfX + 4,
           y: pdfY + pdfHeight / 2 - dateFontSize / 2,
           size: dateFontSize,
+          font,
           color: rgb(0, 0, 0),
         });
         break;
@@ -151,24 +202,48 @@ export async function burnSignatureIntoPdf(
             });
           } catch (err) {
             console.warn("Failed to embed image field:", err);
+            // Draw placeholder
+            const label = FIELD_LABELS[field.type];
+            const fontSize = Math.min(pdfHeight * 0.5, 10);
+            page.drawText(label!!, {
+              x: pdfX + 4,
+              y: pdfY + pdfHeight / 2 - fontSize / 2,
+              size: fontSize,
+              font,
+              color: rgb(color.r, color.g, color.b),
+            });
           }
+        } else {
+          // Draw placeholder label
+          const label = FIELD_LABELS[field.type];
+          const fontSize = Math.min(pdfHeight * 0.5, 10);
+          page.drawText(label!!, {
+            x: pdfX + 4,
+            y: pdfY + pdfHeight / 2 - fontSize / 2,
+            size: fontSize,
+            font,
+            color: rgb(color.r, color.g, color.b),
+          });
         }
         break;
 
       case "radio":
-        // Draw a filled circle if selected
-        if (field.value === "true" || field.value === "selected") {
-          const radius = Math.min(pdfWidth, pdfHeight) / 2 - 2;
-          page.drawCircle({
-            x: pdfX + pdfWidth / 2,
-            y: pdfY + pdfHeight / 2,
-            size: radius,
-            color: rgb(0, 0, 0),
-          });
-        }
+        // Draw circle outline always, fill if selected
+        const radius = Math.min(pdfWidth, pdfHeight) / 2 - 2;
+        page.drawCircle({
+          x: pdfX + pdfWidth / 2,
+          y: pdfY + pdfHeight / 2,
+          size: radius,
+          borderColor: rgb(color.r, color.g, color.b),
+          borderWidth: 1,
+          color: field.value === "true" || field.value === "selected" 
+            ? rgb(color.r, color.g, color.b) 
+            : undefined,
+        });
         break;
     }
   }
 
+  console.log("PDF processing complete");
   return pdfDoc.save();
 }
