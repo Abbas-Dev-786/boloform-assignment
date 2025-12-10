@@ -9,10 +9,10 @@ const PdfLayout = () => {
 
 
   return (
-    <div className="flex flex-col items-center justify-center overflow-auto w-full p-4">
+    <div className="flex flex-col items-center justify-center overflow-auto">
       <ActionToolbar />
 
-      <div className="bg-white p-4 flex flex-col gap-4 rounded-lg shadow w-full max-w-4xl">
+      <div className="bg-white p-4 flex flex-col gap-4 rounded-lg shadow">
         <PdfRenderer pageNumber={pageNumber} setNumPages={setNumPages} />
 
         <CustomPagination
