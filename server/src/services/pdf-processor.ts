@@ -6,7 +6,7 @@ interface SignatureOverlay {
   fields: IFieldData[];
 }
 
-// Field colors by type (matching frontend)
+// Field colors by type
 const FIELD_COLORS: Record<string, { r: number; g: number; b: number }> = {
   text: { r: 0.231, g: 0.51, b: 0.965 }, // #3b82f6
   signature: { r: 0.133, g: 0.773, b: 0.369 }, // #22c55e
@@ -34,7 +34,7 @@ export async function burnSignatureIntoPdf(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const pages = pdfDoc.getPages();
-  
+
   // Embed a standard font for labels
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
@@ -77,9 +77,13 @@ export async function burnSignatureIntoPdf(
     const pdfWidth = field.width * pageWidth;
     const pdfHeight = field.height * pageHeight;
     // Flip Y: PDF Y = pageHeight - (normalized Y * pageHeight) - field height
-    const pdfY = pageHeight - (field.y * pageHeight) - pdfHeight;
+    const pdfY = pageHeight - field.y * pageHeight - pdfHeight;
 
-    console.log(`Field ${field.type} at (${pdfX.toFixed(2)}, ${pdfY.toFixed(2)}) size ${pdfWidth.toFixed(2)}x${pdfHeight.toFixed(2)}`);
+    console.log(
+      `Field ${field.type} at (${pdfX.toFixed(2)}, ${pdfY.toFixed(
+        2
+      )}) size ${pdfWidth.toFixed(2)}x${pdfHeight.toFixed(2)}`
+    );
 
     // Get field color
     const color = FIELD_COLORS[field.type] || { r: 0.5, g: 0.5, b: 0.5 };
@@ -236,9 +240,10 @@ export async function burnSignatureIntoPdf(
           size: radius,
           borderColor: rgb(color.r, color.g, color.b),
           borderWidth: 1,
-          color: field.value === "true" || field.value === "selected" 
-            ? rgb(color.r, color.g, color.b) 
-            : undefined,
+          color:
+            field.value === "true" || field.value === "selected"
+              ? rgb(color.r, color.g, color.b)
+              : undefined,
         });
         break;
     }
